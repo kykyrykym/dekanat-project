@@ -36,7 +36,6 @@ public class GroupsController : ControllerBase
                 g.AcademicYear,
                 g.Specialty
             })
-            .Take(100)
             .ToListAsync();
 
         return Ok(groups);
@@ -88,4 +87,5 @@ public class GroupsController : ControllerBase
         
         return Ok(years);
     }
+
 }
