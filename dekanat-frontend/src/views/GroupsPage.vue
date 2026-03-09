@@ -145,18 +145,10 @@ export default {
   data() {
     return {
       groups: [],
-      faculties: ['Факультет информатики', 'Факультет экономики', 'Факультет медицины'],
-      studyForms: [
-        { code: 1, name: 'Очная' },
-        { code: 2, name: 'Заочная' },
-        { code: 3, name: 'Очно-заочная' }
-      ],
-      educationLevels: [
-        { code: 1, name: 'Специалитет' },
-        { code: 2, name: 'Бакалавриат' },
-        { code: 3, name: 'Магистратура' }
-      ],
-      academicYears: ['2023-2024', '2024-2025', '2025-2026'],
+      faculties: [],           // Будут загружены из БД
+      studyForms: [],          // Будут загружены из БД
+      educationLevels: [],     // Будут загружены из БД
+      academicYears: [],       // Будут загружены из БД
       
       filters: {
         faculty: null,
@@ -171,25 +163,93 @@ export default {
   },
 
   created() {
-    this.loadGroups();
+    this.loadFilterData();  // Сначала загружаем фильтры
+    this.loadGroups();      // Потом загружаем группы
   },
 
   methods: {
+    // Загрузка данных для фильтров из БД
+    async loadFilterData() {
+      try {
+        // Загружаем все фильтры одновременно
+        const [facultiesRes, studyFormsRes, educationLevelsRes, yearsRes] = await Promise.all([
+          axios.get('http://localhost:5299/api/groups/faculties'),
+          axios.get('http://localhost:5299/api/groups/studyforms'),
+          axios.get('http://localhost:5299/api/groups/educationlevels'),
+          axios.get('http://localhost:5299/api/groups/academicyears'),
+        ]);
+        
+        // Заполняем массивы данными из БД
+        this.faculties = facultiesRes.data;
+        
+        // Преобразуем формы обучения в нужный формат
+        this.studyForms = studyFormsRes.data.map(item => ({
+          code: item.code || item,
+          name: item.name || item
+        }));
+        
+        // Преобразуем уровни образования в нужный формат
+        this.educationLevels = educationLevelsRes.data.map(item => ({
+          code: item.code || item,
+          name: item.name || item
+        }));
+        
+        this.academicYears = yearsRes.data;
+        
+        console.log('✅ Фильтры загружены из БД:', {
+          faculties: this.faculties,
+          studyForms: this.studyForms,
+          educationLevels: this.educationLevels,
+          academicYears: this.academicYears
+        });
+        
+      } catch (error) {
+        console.error('❌ Ошибка загрузки фильтров:', error);
+      }
+    },
+
+    // Загрузка групп с фильтрацией
     async loadGroups() {
       this.loading = true;
       
       try {
-        // Простой запрос без параметров
-        const response = await axios.get('http://localhost:5299/api/groups');
+        // Формируем параметры для фильтрации
+        const params = {};
+        
+        if (this.filters.faculty) {
+          params.faculty = this.filters.faculty;
+        }
+        
+        if (this.filters.studyForm) {
+          params.studyForm = this.filters.studyForm;
+        }
+        
+        if (this.filters.educationLevel) {
+          params.educationLevel = this.filters.educationLevel;
+        }
+        
+        if (this.filters.courses && this.filters.courses.length > 0) {
+          params.courses = this.filters.courses.join(',');
+        }
+        
+        if (this.filters.academicYear) {
+          params.academicYear = this.filters.academicYear;
+        }
+        
+        // Отправляем запрос с параметрами
+        const response = await axios.get('http://localhost:5299/api/groups', { params });
         this.groups = response.data;
-        console.log('Загружено групп:', this.groups.length);
+        
+        console.log('✅ Загружено групп:', this.groups.length, 'Параметры:', params);
+        
       } catch (error) {
-        console.error('Ошибка загрузки:', error);
+        console.error('❌ Ошибка загрузки групп:', error);
       } finally {
         this.loading = false;
       }
     },
 
+    // Сброс фильтров
     resetFilters() {
       this.filters = {
         faculty: null,
