@@ -280,3 +280,4 @@ export default {
   justify-content: center;
 }
 </style>
+<!-- Тестовое изменение: проверка связи с GitHub -->
