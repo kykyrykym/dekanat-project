@@ -7,19 +7,19 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// ПОДКЛЮЧЕНИЕ К БД
+// Подключение к БД
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer("Server=localhost\\SQLEXPRESS;Database=Деканат;Trusted_Connection=True;TrustServerCertificate=True;"));
 
-// CORS для Vue
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowVueApp",
+    options.AddPolicy("AllowAll",
         policy =>
         {
             policy.WithOrigins("http://localhost:8080")
+                  .AllowAnyMethod()
                   .AllowAnyHeader()
-                  .AllowAnyMethod();
+                  .WithExposedHeaders("X-Total-Count"); 
         });
 });
 
@@ -32,7 +32,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowVueApp");
+
+app.UseCors("AllowAll");
+
 app.UseAuthorization();
 app.MapControllers();
 
