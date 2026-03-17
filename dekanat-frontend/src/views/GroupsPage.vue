@@ -19,7 +19,7 @@
                 clearable
                 dense
                 outlined
-                @change="loadGroups"
+                @change="resetPageAndLoad"
               ></v-autocomplete>
             </v-col>
 
@@ -33,7 +33,7 @@
                 clearable
                 dense
                 outlined
-                @change="loadGroups"
+                @change="resetPageAndLoad"
               ></v-select>
             </v-col>
 
@@ -47,7 +47,7 @@
                 clearable
                 dense
                 outlined
-                @change="loadGroups"
+                @change="resetPageAndLoad"
               ></v-select>
             </v-col>
 
@@ -61,7 +61,7 @@
                 dense
                 outlined
                 chips
-                @change="loadGroups"
+                @change="resetPageAndLoad"
               ></v-select>
             </v-col>
 
@@ -73,7 +73,7 @@
                 clearable
                 dense
                 outlined
-                @change="loadGroups"
+                @change="resetPageAndLoad"
               ></v-select>
             </v-col>
           </v-row>
@@ -98,37 +98,54 @@
       </v-col>
     </v-row>
 
-    <!-- Таблица с данными -->
+    <!-- Таблица и пагинация -->
     <v-row v-else>
       <v-col cols="12">
         <v-card>
           <v-card-title>
-            Найдено групп: {{ groups.length }}
+            Найдено групп: {{ groups.length }} (всего: {{ totalGroups }})
           </v-card-title>
           <v-card-text>
             <v-simple-table>
-              <template v-slot:default>
-                <thead>
-                  <tr>
-                    <th>Название группы</th>
-                    <th>Специальность</th>
-                    <th>Курс</th>
-                    <th>Учебный год</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="group in groups" :key="group.id">
-                    <td>{{ group.groupName }}</td>
-                    <td>{{ group.specialty }}</td>
-                    <td>{{ group.course }}</td>
-                    <td>{{ group.academicYear }}</td>
-                  </tr>
-                  <tr v-if="groups.length === 0">
-                    <td colspan="4" class="text-center">Нет данных для отображения</td>
-                  </tr>
-                </tbody>
-              </template>
+              <thead>
+                <tr>
+                  <th>Название группы</th>
+                  <th>Факультет</th>
+                  <th>Специальность</th>
+                  <th>Курс</th>
+                  <th>Форма обучения</th>
+                  <th>Учебный год</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="group in groups" :key="group.id">
+                  <td>{{ group.groupName }}</td>
+                  <td>{{ group.facultyName || 'Не указан' }}</td>
+                  <td>{{ group.specialty }}</td>
+                  <td>{{ group.course }}</td>
+                  <td>{{ group.studyFormName || 'Не указана' }}</td>
+                  <td>{{ group.academicYear }}</td>
+                </tr>
+                <tr v-if="groups.length === 0">
+                  <td colspan="6" class="text-center">Нет данных</td>
+                </tr>
+              </tbody>
             </v-simple-table>
+
+            <!-- КНОПКИ ПАГИНАЦИИ -->
+            <div class="text-center mt-4" v-if="totalGroups > 0">
+              <v-pagination
+                v-model="pagination.page"
+                :length="totalPages"
+                :total-visible="7"
+                @input="loadGroups"
+                circle
+              ></v-pagination>
+              <div class="text-caption text-grey mt-2">
+                Страница {{ pagination.page }} из {{ totalPages }} 
+                (показано {{ groups.length }} из {{ totalGroups }} групп)
+              </div>
+            </div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -138,6 +155,7 @@
 
 <script>
 import axios from 'axios';
+import groupService from '@/services/groupService';
 
 export default {
   name: 'GroupsPage',
@@ -145,10 +163,10 @@ export default {
   data() {
     return {
       groups: [],
-      faculties: [],           // Будут загружены из БД
-      studyForms: [],          // Будут загружены из БД
-      educationLevels: [],     // Будут загружены из БД
-      academicYears: [],       // Будут загружены из БД
+      faculties: [],
+      studyForms: [],
+      educationLevels: [],
+      academicYears: [],
       
       filters: {
         faculty: null,
@@ -158,20 +176,32 @@ export default {
         academicYear: null,
       },
       
+      pagination: {
+        page: 1,
+        itemsPerPage: 50
+      },
+      totalGroups: 0,
+      error: '',
+      
       loading: false,
     };
   },
 
+  computed: {
+    // Общее количество страниц
+    totalPages() {
+      return Math.ceil(this.totalGroups / this.pagination.itemsPerPage) || 1;
+    }
+  },
+
   created() {
-    this.loadFilterData();  // Сначала загружаем фильтры
-    this.loadGroups();      // Потом загружаем группы
+    this.loadFilterData();
+    this.loadGroups();
   },
 
   methods: {
-    // Загрузка данных для фильтров из БД
     async loadFilterData() {
       try {
-        // Загружаем все фильтры одновременно
         const [facultiesRes, studyFormsRes, educationLevelsRes, yearsRes] = await Promise.all([
           axios.get('http://localhost:5299/api/groups/faculties'),
           axios.get('http://localhost:5299/api/groups/studyforms'),
@@ -179,77 +209,55 @@ export default {
           axios.get('http://localhost:5299/api/groups/academicyears'),
         ]);
         
-        // Заполняем массивы данными из БД
         this.faculties = facultiesRes.data;
-        
-        // Преобразуем формы обучения в нужный формат
-        this.studyForms = studyFormsRes.data.map(item => ({
-          code: item.code || item,
-          name: item.name || item
-        }));
-        
-        // Преобразуем уровни образования в нужный формат
-        this.educationLevels = educationLevelsRes.data.map(item => ({
-          code: item.code || item,
-          name: item.name || item
-        }));
-        
+        this.studyForms = studyFormsRes.data;
+        this.educationLevels = educationLevelsRes.data;
         this.academicYears = yearsRes.data;
         
-        console.log('✅ Фильтры загружены из БД:', {
-          faculties: this.faculties,
-          studyForms: this.studyForms,
-          educationLevels: this.educationLevels,
-          academicYears: this.academicYears
-        });
-        
       } catch (error) {
-        console.error('❌ Ошибка загрузки фильтров:', error);
+        console.error('Ошибка загрузки фильтров:', error);
       }
     },
 
-    // Загрузка групп с фильтрацией
     async loadGroups() {
       this.loading = true;
       
       try {
-        // Формируем параметры для фильтрации
-        const params = {};
+        const params = {
+          page: this.pagination.page,
+          pageSize: this.pagination.itemsPerPage
+        };
         
-        if (this.filters.faculty) {
-          params.faculty = this.filters.faculty;
-        }
+        if (this.filters.faculty) params.faculty = this.filters.faculty;
+        if (this.filters.studyForm) params.studyForm = this.filters.studyForm;
+        if (this.filters.educationLevel) params.educationLevel = this.filters.educationLevel;
+        if (this.filters.courses?.length) params.courses = this.filters.courses.join(',');
+        if (this.filters.academicYear) params.academicYear = this.filters.academicYear;
         
-        if (this.filters.studyForm) {
-          params.studyForm = this.filters.studyForm;
-        }
-        
-        if (this.filters.educationLevel) {
-          params.educationLevel = this.filters.educationLevel;
-        }
-        
-        if (this.filters.courses && this.filters.courses.length > 0) {
-          params.courses = this.filters.courses.join(',');
-        }
-        
-        if (this.filters.academicYear) {
-          params.academicYear = this.filters.academicYear;
-        }
-        
-        // Отправляем запрос с параметрами
-        const response = await axios.get('http://localhost:5299/api/groups', { params });
+        const response = await groupService.getGroups(params);
         this.groups = response.data;
         
-        console.log('✅ Загружено групп:', this.groups.length, 'Параметры:', params);
+        const totalCount = response.headers['x-total-count'] || response.headers['X-Total-Count'];
+        if (totalCount) {
+          this.totalGroups = parseInt(totalCount);
+        } else {
+          this.totalGroups = this.groups.length;
+        }
         
       } catch (error) {
-        console.error('❌ Ошибка загрузки групп:', error);
+        console.error('Ошибка загрузки групп:', error);
+        this.error = 'Ошибка при загрузке групп';
       } finally {
         this.loading = false;
       }
     },
 
-    // Сброс фильтров
+    // Сброс на первую страницу при изменении фильтров
+    resetPageAndLoad() {
+      this.pagination.page = 1;
+      this.loadGroups();
+    },
+
     resetFilters() {
       this.filters = {
         faculty: null,
@@ -258,8 +266,17 @@ export default {
         courses: [],
         academicYear: null,
       };
+      this.pagination.page = 1;
       this.loadGroups();
     },
   },
 };
 </script>
+
+<style scoped>
+/* Стили для пагинации */
+.v-pagination {
+  display: flex;
+  justify-content: center;
+}
+</style>
