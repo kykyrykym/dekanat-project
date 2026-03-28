@@ -163,7 +163,7 @@ export default {
       loading: false,
       
       filters: { gender: null, status: null },
-      pagination: { page: 1, itemsPerPage: 20 },
+      pagination: { page: 1, itemsPerPage: 10 },
       
       dialog: false,
       editingStudent: null,
