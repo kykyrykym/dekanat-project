@@ -34,7 +34,6 @@ public class GroupsController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50)
     {
-        // Базовый запрос с JOIN для получения названий вместо кодов
         var query = from g in _context.Все_Группы
                     join f in _context.Факультеты on g.FacultyCode equals f.Code into fj
                     from facultyItem in fj.DefaultIfEmpty()
@@ -54,7 +53,6 @@ public class GroupsController : ControllerBase
                         g.EducationLevelCode
                     };
 
-        // Применение фильтров
         if (!string.IsNullOrEmpty(faculty))
             query = query.Where(g => g.FacultyName == faculty);
 
@@ -67,24 +65,20 @@ public class GroupsController : ControllerBase
         if (!string.IsNullOrEmpty(academicYear))
             query = query.Where(g => g.AcademicYear == academicYear);
 
-        // Фильтр по нескольким курсам
         if (!string.IsNullOrEmpty(courses))
         {
             var courseList = courses.Split(',').Select(int.Parse).ToList();
             query = query.Where(g => courseList.Contains(g.Course));
         }
 
-        // Получаем общее количество для пагинации
         var totalCount = await query.CountAsync();
 
-        // Применяем сортировку, пагинацию и выполняем запрос
         var groups = await query
             .OrderBy(g => g.Course)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
 
-        // Добавляем общее количество в заголовок ответа
         Response.Headers.Add("X-Total-Count", totalCount.ToString());
 
         return Ok(groups);
@@ -102,7 +96,7 @@ public class GroupsController : ControllerBase
         return Ok(faculties);
     }
 
-    // Получение списка форм обучения для фильтра (возвращаем объекты с code и name)
+    // Получение списка форм обучения для фильтра
     [HttpGet("studyforms")]
     public async Task<ActionResult<IEnumerable<object>>> GetStudyForms()
     {
@@ -116,7 +110,7 @@ public class GroupsController : ControllerBase
         return Ok(forms);
     }
 
-    // Получение списка уровней образования для фильтра (возвращаем объекты с code и name)
+    // Получение списка уровней образования для фильтра
     [HttpGet("educationlevels")]
     public async Task<ActionResult<IEnumerable<object>>> GetEducationLevels()
     {
@@ -142,5 +136,82 @@ public class GroupsController : ControllerBase
             .ToListAsync();
         
         return Ok(years);
+    }
+
+    // Методы для студентов 
+
+    // GET: api/groups/{groupId}/students
+    [HttpGet("{groupId}/students")]
+    public async Task<ActionResult<IEnumerable<object>>> GetStudentsByGroup(
+        int groupId,
+        [FromQuery] string? gender,
+        [FromQuery] int? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var query = _context.Студенты
+            .Where(s => s.Код_Группы == groupId)
+            .AsQueryable();
+
+        if (!string.IsNullOrEmpty(gender))
+            query = query.Where(s => s.Пол == gender);
+
+        if (status.HasValue)
+            query = query.Where(s => s.Статус == status);
+
+        var totalCount = await query.CountAsync();
+
+        var students = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(s => new
+            {
+                s.ID,
+                s.ФИО,
+                s.Пол,
+                s.Дата_Рождения,
+                s.Номер_Зачетки,
+                s.Средний_Балл,
+                s.Статус,
+                СтатусТекст = s.Статус == 0 ? "Отчислен" :
+                              s.Статус == 1 ? "Учится" :
+                              s.Статус == 2 ? "Выпускник" : "Академ"
+            })
+            .ToListAsync();
+
+        Response.Headers.Add("X-Total-Count", totalCount.ToString());
+        return Ok(students);
+    }
+
+    [HttpPut("students/{id}")]
+    public async Task<ActionResult> UpdateStudent(int id, [FromBody] UpdateStudentRequest request)
+    {
+        Console.WriteLine($"📝 PUT: студент {id}, ФИО={request.ФИО}");
+        
+        var student = await _context.Студенты.FindAsync(id);
+        if (student == null)
+            return NotFound();
+
+        student.ФИО = request.ФИО;
+        student.Пол = request.Пол;
+        student.Дата_Рождения = request.Дата_Рождения;
+        student.Номер_Зачетки = request.Номер_Зачетки;
+        student.Средний_Балл = request.Средний_Балл;
+        student.Статус = request.Статус;
+        
+        await _context.SaveChangesAsync();
+        Console.WriteLine($"✅ Студент {id} обновлён");
+
+        return Ok();
+    }
+
+    public class UpdateStudentRequest
+    {
+        public string ФИО { get; set; }
+        public string Пол { get; set; }
+        public DateTime Дата_Рождения { get; set; }
+        public string Номер_Зачетки { get; set; }
+        public decimal Средний_Балл { get; set; }
+        public int Статус { get; set; }
     }
 }

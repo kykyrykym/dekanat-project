@@ -39,5 +39,16 @@ export default {
   // Проверка подключения
   testConnection() {
     return apiClient.get('/groups/test');
+  },
+
+  // Получить студентов группы
+  getStudentsByGroup(groupId, params = {}) {
+    return apiClient.get(`/groups/${groupId}/students`, { params });
+  },
+
+  // Обновить студента
+  updateStudent(id, data) {
+    console.log('updateStudent вызван', id, data);
+    return apiClient.put(`/students/${id}`, data);
   }
 };

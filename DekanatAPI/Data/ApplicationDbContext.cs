@@ -9,6 +9,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Faculty> Факультеты { get; set; }
     public DbSet<StudyForm> ФормаОбучения { get; set; }
     public DbSet<EducationLevel> Уровень_образования { get; set; }
+    public DbSet<Student> Студенты { get; set; }  // ← ЭТО ДОБАВИТЬ
     
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
@@ -19,7 +20,6 @@ public class ApplicationDbContext : DbContext
     {
         if (!optionsBuilder.IsConfigured)
         {
-            // ⚠️ ВАЖНО: ЭТО ВАША СТРОКА ПОДКЛЮЧЕНИЯ!
             string connectionString = "Server=localhost\\SQLEXPRESS;Database=Деканат;Trusted_Connection=True;TrustServerCertificate=True;";
             optionsBuilder.UseSqlServer(connectionString);
         }

@@ -119,7 +119,11 @@
               </thead>
               <tbody>
                 <tr v-for="group in groups" :key="group.id">
-                  <td>{{ group.groupName }}</td>
+                  <td>
+                    <router-link :to="`/groups/${group.id}/students`" class="group-link">
+                      {{ group.groupName }}
+                    </router-link>
+                  </td>
                   <td>{{ group.facultyName || 'Не указан' }}</td>
                   <td>{{ group.specialty }}</td>
                   <td>{{ group.course }}</td>
@@ -279,5 +283,12 @@ export default {
   display: flex;
   justify-content: center;
 }
+.group-link {
+  color: #1976D2;
+  text-decoration: none;
+  font-weight: 500;
+}
+.group-link:hover {
+  text-decoration: underline;
+}
 </style>
-<!-- Тестовое изменение: проверка связи с GitHub -->
