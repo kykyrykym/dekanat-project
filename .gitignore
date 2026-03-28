@@ -1,0 +1,24 @@
+# ========== .NET ==========
+DekanatAPI/bin/
+DekanatAPI/obj/
+*.user
+*.suo
+.vs/
+*.dll
+*.exe
+*.pdb
+
+# ========== Vue ==========
+dekanat-frontend/node_modules/
+dekanat-frontend/dist/
+dekanat-frontend/package-lock.json
+dekanat-frontend/.env.local
+dekanat-frontend/.env.*.local
+
+# ========== Общее ==========
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+.vscode/
+.idea/
