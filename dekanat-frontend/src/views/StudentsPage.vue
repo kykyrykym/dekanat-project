@@ -54,6 +54,10 @@
               class="elevation-1"
               hide-default-footer
             >
+              <template v-slot:item.дата_Рождения="{ item }">
+                {{ formatDate(item.дата_Рождения) }}
+              </template>
+
               <template v-slot:item.actions="{ item }">
                 <v-btn small color="primary" @click="openEditDialog(item)">
                   Редактировать
@@ -108,7 +112,9 @@
                 <v-text-field
                   v-model="editForm.birthDate"
                   label="Дата рождения"
-                  type="date"
+                  placeholder="ДД.ММ.ГГГГ"
+                  maxlength="10"
+                  @input="formatInputDate"
                 ></v-text-field>
               </v-col>
               <v-col cols="12">
@@ -216,6 +222,34 @@ export default {
   },
 
   methods: {
+    formatDate(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}.${month}.${year}`;
+    },
+
+    formatInputDate(value) {
+      let cleaned = value.replace(/\D/g, '');
+      if (cleaned.length > 8) cleaned = cleaned.slice(0, 8);
+      let formatted = '';
+      if (cleaned.length > 0) {
+        formatted += cleaned.slice(0, 2);
+      }
+      if (cleaned.length >= 3) {
+        formatted += '.' + cleaned.slice(2, 4);
+      }
+      if (cleaned.length >= 5) {
+        formatted += '.' + cleaned.slice(4, 8);
+      }
+      if (formatted.length > 10) {
+        formatted = formatted.slice(0, 10);
+      }
+      this.editForm.birthDate = formatted;
+    },
+
     async loadGroupName() {
       try {
         const response = await groupService.getGroups({ page: 1, pageSize: 1000 });
@@ -268,7 +302,7 @@ export default {
       this.editForm = {
         fullName: student.фио || '',
         gender: student.пол || '',
-        birthDate: student.дата_Рождения ? student.дата_Рождения.split('T')[0] : '',
+        birthDate: student.дата_Рождения ? this.formatDate(student.дата_Рождения) : '',
         recordBook: student.номер_Зачетки || '',
         averageGrade: student.средний_Балл || 0,
         status: student.статус !== undefined ? student.статус : 1
@@ -278,10 +312,18 @@ export default {
 
     async saveStudent() {
       try {
+        let birthDateForServer = '';
+        if (this.editForm.birthDate) {
+          const parts = this.editForm.birthDate.split('.');
+          if (parts.length === 3) {
+            birthDateForServer = `${parts[2]}-${parts[1]}-${parts[0]}`;
+          }
+        }
+        
         const updateData = {
           ФИО: this.editForm.fullName,
           Пол: this.editForm.gender,
-          Дата_Рождения: this.editForm.birthDate,
+          Дата_Рождения: birthDateForServer,
           Номер_Зачетки: this.editForm.recordBook,
           Средний_Балл: parseFloat(this.editForm.averageGrade),
           Статус: parseInt(this.editForm.status)
